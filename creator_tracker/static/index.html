@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Token Tracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .token-card {
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+        .token-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .new-token {
+            animation: highlight 2s ease-out;
+        }
+        @keyframes highlight {
+            0% { background-color: #fff3cd; }
+            100% { background-color: white; }
+        }
+        .timestamp {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-4">
+        <h1 class="mb-4">Token Tracker</h1>
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Derniers Tokens</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="tokens-list"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Statistiques</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>Tokens trouvés: <span id="token-count">0</span></p>
+                        <p>Dernière mise à jour: <span id="last-update">-</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = new WebSocket(`ws://${window.location.host}/ws`);
+        
+        ws.onmessage = function(event) {
+            const tokens = JSON.parse(event.data);
+            updateTokensList(tokens);
+            updateStats(tokens);
+        };
+
+        ws.onclose = function() {
+            console.log('WebSocket fermé, tentative de reconnexion...');
+            setTimeout(() => {
+                ws = new WebSocket(`ws://${window.location.host}/ws`);
+            }, 1000);
+        };
+
+        function updateTokensList(tokens) {
+            const container = document.getElementById('tokens-list');
+            container.innerHTML = tokens.map((token, index) => `
+                <div class="card token-card ${index === 0 ? 'new-token' : ''}">
+                    <div class="card-body">
+                        <h5 class="card-title">Token ${token.address.slice(0, 8)}...</h5>
+                        <p class="card-text">
+                            Créateur: ${token.creator.slice(0, 8)}...<br>
+                            Symbol: ${token.symbol}
+                        </p>
+                        <p class="timestamp">Trouvé le ${new Date(token.found_at).toLocaleString()}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateStats(tokens) {
+            document.getElementById('token-count').textContent = tokens.length;
+            if (tokens.length > 0) {
+                document.getElementById('last-update').textContent = 
+                    new Date(tokens[0].found_at).toLocaleString();
+            }
+        }
+
+        // Charge les données initiales
+        fetch('/api/tokens')
+            .then(response => response.json())
+            .then(tokens => {
+                updateTokensList(tokens);
+                updateStats(tokens);
+            });
+    </script>
+</body>
+</html>

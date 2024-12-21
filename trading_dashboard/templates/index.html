@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepTrader AI - Advanced Trading System</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #1a1c2e 0%, #0f172a 100%);
+        }
+        .card-gradient {
+            background: linear-gradient(145deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.7) 100%);
+            backdrop-filter: blur(10px);
+        }
+        .glow {
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.1);
+        }
+        @keyframes pulse-blue {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.4); }
+            50% { box-shadow: 0 0 0 8px rgba(56, 189, 248, 0); }
+        }
+        .pulse-blue {
+            animation: pulse-blue 2s infinite;
+        }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen text-white">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="mb-12">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-cyan-300 mb-3">DeepTrader AI</h1>
+                    <p class="text-lg text-cyan-200">Next-Generation Neural Architecture</p>
+                </div>
+                <div class="text-right">
+                    <div class="inline-flex items-center px-4 py-2 rounded-full card-gradient border border-cyan-500/30 mb-2">
+                        <div class="w-2 h-2 rounded-full bg-green-400 mr-2 pulse-blue"></div>
+                        <span class="text-cyan-300 font-semibold">SYSTEM ACTIVE</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Metrics Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <!-- Training Progress -->
+            <div class="card-gradient rounded-xl border border-cyan-500/20 p-6 glow">
+                <h3 class="text-cyan-300 font-semibold mb-4">Training Progress</h3>
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p id="current-epoch" class="text-4xl font-bold text-white mb-4">0/100</p>
+                        <div>
+                            <p id="system-status" class="text-cyan-200 whitespace-pre-line mb-2">Active Trading & Learning</p>
+                            <p id="next-analysis" class="text-cyan-400"></p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p id="start-time" class="text-sm text-cyan-200 mb-2">Start: 12/18/23 8:00 AM NY</p>
+                        <p id="current-time" class="text-sm text-cyan-200">Current: --/--/-- --:-- -- NY</p>
+                    </div>
+                </div>
+                <div class="w-full bg-gray-800/50 rounded-full h-2 mt-6">
+                    <div id="epoch-progress" class="bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full h-2 transition-all duration-500" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Trading Accuracy -->
+            <div class="card-gradient rounded-xl border border-cyan-500/20 p-6 glow">
+                <h3 class="text-cyan-300 font-semibold mb-4">Trading Accuracy</h3>
+                <div class="flex justify-center items-center h-24">
+                    <p id="prediction-accuracy" class="text-4xl font-bold text-white">23.00%</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profitability Chart -->
+        <div class="card-gradient rounded-xl border border-cyan-500/20 p-6 glow mb-8">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-semibold text-cyan-300">Trading Performance</h3>
+                <div class="flex items-center">
+                    <div id="current-profit" class="text-2xl font-bold text-red-400">-2.45%</div>
+                </div>
+            </div>
+            <div id="profit-chart" class="w-full h-80"></div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let performanceData = [];
+
+        // Initialize profit chart
+        const profitChart = Plotly.newPlot('profit-chart', [{
+            y: [0.0],
+            type: 'scatter',
+            mode: 'lines',
+            fill: 'tozeroy',
+            name: 'Performance',
+            line: {
+                color: '#ef4444',
+                width: 2,
+                shape: 'spline'
+            },
+            fillcolor: 'rgba(239, 68, 68, 0.1)'
+        }], {
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            font: {
+                color: '#94a3b8',
+                family: 'system-ui'
+            },
+            margin: {t: 0, r: 0, l: 40, b: 40},
+            showlegend: false,
+            xaxis: {
+                showgrid: true,
+                gridcolor: 'rgba(148, 163, 184, 0.1)',
+                zeroline: false,
+                showline: false,
+                tickmode: 'array',
+                ticktext: [],
+                tickvals: [],
+                tickangle: 45
+            },
+            yaxis: {
+                showgrid: true,
+                gridcolor: 'rgba(148, 163, 184, 0.1)',
+                zeroline: true,
+                zerolinecolor: 'rgba(148, 163, 184, 0.2)',
+                showline: false,
+                ticksuffix: '%',
+                tickformat: '.2f',
+                range: [-16, 1]
+            }
+        }, {
+            responsive: true,
+            displayModeBar: false
+        });
+
+        socket.on('training_update', (data) => {
+            // Mise à jour des métriques
+            document.getElementById('current-epoch').textContent = `${data.epoch}/${data.total_epochs}`;
+            document.getElementById('current-time').textContent = `Current: ${data.current_time}`;
+            document.getElementById('start-time').textContent = `Start: ${data.start_time}`;
+            document.getElementById('prediction-accuracy').textContent = `${(data.accuracy * 100).toFixed(2)}%`;
+            document.getElementById('system-status').textContent = data.current_status;
+            
+            // Afficher le temps restant jusqu'à la prochaine analyse
+            if (data.hours_to_analysis && !data.current_status.includes("Analysis Period")) {
+                document.getElementById('next-analysis').textContent = 
+                    `Next analysis in ${data.hours_to_analysis.toFixed(1)} hours`;
+            } else {
+                document.getElementById('next-analysis').textContent = '';
+            }
+            
+            const progress = (data.epoch / data.total_epochs) * 100;
+            document.getElementById('epoch-progress').style.width = `${progress}%`;
+
+            // Mise à jour de la courbe de performance
+            Plotly.update('profit-chart', {
+                y: [data.performance_history]
+            }, {
+                'xaxis.ticktext': data.dates,
+                'xaxis.tickvals': Array.from({length: data.dates.length}, (_, i) => i)
+            });
+
+            // Mise à jour de l'affichage de la performance
+            document.getElementById('current-profit').textContent = 
+                `${data.performance >= 0 ? '+' : ''}${data.performance.toFixed(2)}%`;
+            document.getElementById('current-profit').className = 
+                `text-2xl font-bold ${data.performance >= 0 ? 'text-green-400' : 'text-red-400'}`;
+        });
+    </script>
+</body>
+</html>
